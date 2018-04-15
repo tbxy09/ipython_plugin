@@ -10,6 +10,11 @@ import warnings
 import signal
 import sys
 from typing import Callable
+import pandas as pd
+import sqlite3
+from pyfzf.pyfzf import FzfPrompt
+from pathlib import Path
+home = str(Path.home())
 
 
 from prompt_toolkit.enums import DEFAULT_BUFFER, SEARCH_BUFFER
@@ -82,6 +87,10 @@ def register_ipython_shortcuts(registry, shell):
     registry.add_binding(Keys.F2,
                          filter=HasFocus(DEFAULT_BUFFER)
                         )(open_input_in_editor)
+    registry.add_binding(Keys.ControlY,
+                         filter=HasFocus(DEFAULT_BUFFER)
+                        )(fzf_history)
+
 
     if shell.display_completions == 'readlinelike':
         registry.add_binding(Keys.ControlI,
@@ -235,6 +244,14 @@ def open_input_in_editor(event):
     event.cli.current_buffer.tempfile_suffix = ".py"
     event.cli.current_buffer.open_in_editor(event.cli)
 
+def fzf_history(event):
+    cnx = sqlite3.connect(home+'/.ipython/profile_default/history.sqlite')
+    fzf=FzfPrompt()
+    df = pd.read_sql_query("SELECT * FROM history", cnx)
+    itext=fzf.prompt(df['source'])
+    # print(itext)
+    if itext!=[]:
+        event.current_buffer.insert_text(itext[0])
 
 if sys.platform == 'win32':
     from IPython.core.error import TryNext
